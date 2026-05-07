@@ -4,7 +4,7 @@ import google.generativeai as genai
 # --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Cerebro Central Maquinaria", page_icon="🏗️", layout="centered")
 
-# Estilo CSS para mejorar la apariencia en móviles
+# Estilo CSS para mejorar la apariencia
 st.markdown("""
     <style>
     .main { background-color: #f5f5f5; }
@@ -16,67 +16,75 @@ st.markdown("""
 st.title("🏗️ Cerebro Central de Maquinaria")
 st.caption("Asistente Técnico Inteligente para Femcor y Baw Robotics")
 
-# --- 2. CONFIGURACIÓN DE SEGURIDAD (API KEY) ---
+# --- 2. CONFIGURACIÓN DE SEGURIDAD (API KEY) - VERSIÓN BLINDADA ---
 raw_api_key = st.secrets.get("GOOGLE_API_KEY")
 
 if not raw_api_key:
     st.error("🚨 Falta la configuración de GOOGLE_API_KEY en los Secrets de Streamlit.")
     st.stop()
 
-# Limpieza de la llave para evitar errores de cabecera (Illegal Header)
-clean_api_key = raw_api_key.strip().replace('"', '').replace("'", "")
+# Limpieza profunda de la llave para evitar errores de cabecera
+clean_api_key = raw_api_key.strip().replace('"', '').replace("'", "").replace(" ", "")
 genai.configure(api_key=clean_api_key)
-model = genai.GenerativeModel('models/gemini-1.5-flash')
+
+# Lógica blindada para selección de modelo
+try:
+    # Intento 1: Usar gemini-1.5-flash (el más rápido)
+    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+    # Prueba rápida de conexión
+    model.count_tokens("test") 
+except Exception:
+    try:
+        # Intento 2: Usar el nombre con prefijo models/
+        model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+        model.count_tokens("test")
+    except Exception:
+        # Intento 3: Versión Pro (siempre disponible como respaldo)
+        model = genai.GenerativeModel(model_name='gemini-pro')
 
 # --- 3. DEFINICIÓN DEL CEREBRO (SYSTEM PROMPT) ---
 SYSTEM_PROMPT = """
-Eres el "Cerebro Central de Gestión de Maquinaria". Tu objetivo es guiar al usuario por la jerarquía técnica.
+Eres el "Cerebro Central de Gestión de Maquinaria" de Femcor y Baw Robotics. 
+Tu objetivo es ser un experto técnico que guía al usuario por la jerarquía de productos.
 
-JERARQUÍA ESTRICTA:
+JERARQUÍA:
 1. MARCAS: Femcor, Baw Robotics.
-2. FEMCOR DIVISIONES: Plasma, Laser.
-3. MODELOS PLASMA: Lineacord X, Minicord, Versacord, Alfa, Lineacord, Lineacord 4.0, Agile.
-4. MODELOS LASER: Laser Golden 3000, Laser Golden 6000, Laser Golden Cabinado 6000, Gira Tubos.
-5. ESPECIFICACIONES LINEACORD X: 2000x6000, 2000x12000, 2500x6000, 2500x12000, 3000x6000, 3000.
+2. FEMCOR: Plasma (Lineacord X, Minicord, Versacord, Alfa, Agile) y Laser (Golden 3000, 6000, Cabinado, Gira Tubos).
+3. MODELO LINEACORD X: 2000x6000, 2000x12000, 2500x6000, 2500x12000, 3000x6000, 3000x12000.
 
-PROTOCOLO DE RESPUESTA:
-- Siempre responde usando menús visuales con negritas y corchetes, ej: **[ SELECCIONAR ]**.
-- Si el usuario elige una máquina final, ofrece:
-  a) [ VER PROCEDIMIENTO ] (Extraer de tus documentos).
-  b) [ DESCARGAR PDF ] (Simular link de Drive).
-  c) [ LISTADO DE INSUMOS ] (Mostrar tabla de piezas).
-- Tono: Profesional, técnico y preciso.
+PROTOCOLO:
+- Responde siempre con menús claros usando negritas y corchetes: **[ OPCIÓN ]**.
+- Si el usuario llega a una máquina específica, ofrece: [ DESCARGAR MANUAL ], [ LISTADO DE INSUMOS ], [ VER PROCEDIMIENTO ].
+- Usa tablas para los insumos.
 """
 
-# --- 4. GESTIÓN DEL HISTORIAL DE CHAT ---
+# --- 4. GESTIÓN DEL HISTORIAL ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Mostrar mensajes anteriores
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- 5. LÓGICA DE INTERACCIÓN ---
-if prompt := st.chat_input("Escribe tu marca o modelo de máquina..."):
-    # Guardar y mostrar mensaje del usuario
+# --- 5. INTERACCIÓN ---
+if prompt := st.chat_input("¿En qué puedo ayudarte hoy?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generar respuesta de la IA
     with st.chat_message("assistant"):
         try:
-            # Construimos el envío combinando el System Prompt y la consulta actual
-            full_query = f"{SYSTEM_PROMPT}\n\nUsuario dice: {prompt}"
+            # Combinamos el prompt del sistema con la pregunta para dar contexto
+            full_query = f"{SYSTEM_PROMPT}\n\nPregunta del usuario: {prompt}"
             response = model.generate_content(full_query)
             
-            respuesta_texto = response.text
-            
-            # Mostrar respuesta y guardar en historial
-            st.markdown(respuesta_texto)
-            st.session_state.messages.append({"role": "assistant", "content": respuesta_texto})
-            
+            if response and response.text:
+                respuesta_final = response.text
+                st.markdown(respuesta_final)
+                st.session_state.messages.append({"role": "assistant", "content": respuesta_final})
+            else:
+                st.warning("El cerebro no devolvió texto. Intenta reformular la pregunta.")
+                
         except Exception as e:
-            st.error(f"Hubo un error al conectar con el cerebro de IA: {e}")
-            st.info("Revisa que tu API Key sea válida y no tenga espacios.")
+            st.error(f"Error técnico: {e}")
+            st.info("Sugerencia: Verifica que tu API Key en Secrets sea correcta y no tenga espacios.")
