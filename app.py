@@ -26,7 +26,7 @@ if not raw_api_key:
 # Limpieza de la llave para evitar errores de cabecera (Illegal Header)
 clean_api_key = raw_api_key.strip().replace('"', '').replace("'", "")
 genai.configure(api_key=clean_api_key)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 # --- 3. DEFINICIÓN DEL CEREBRO (SYSTEM PROMPT) ---
 SYSTEM_PROMPT = """
