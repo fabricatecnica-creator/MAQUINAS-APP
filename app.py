@@ -10,7 +10,7 @@ st.markdown("""
     .main { background-color: #f5f5f5; }
     .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #004280; color: white; }
     </style>
-    """, unsafe_allow_status=True)
+    """, unsafe_allow_html=True)
 
 st.title("🏗️ Cerebro Central de Maquinaria")
 st.subheader("Soporte Técnico: Femcor & Baw Robotics")
